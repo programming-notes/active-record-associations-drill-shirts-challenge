@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Shirt do
   it "knows who designed it" do
-    expect(Shirt.find(5).designer.id).to eq 6
+    expect(Shirt.find(5).designer.name).to eq "Anne"
   end
 
   it "knows in which transactions it's been sold" do
@@ -10,6 +10,6 @@ describe Shirt do
   end
 
   it "knows who has puchased it" do
-    expect(Shirt.find(1).purchaser_ids.sort).to eq [1, 5]
+    expect(Shirt.find(1).purchasers.order(:name).pluck(:name)).to eq ["John", "Ralph"]
   end
 end

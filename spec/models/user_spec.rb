@@ -19,10 +19,10 @@ describe User do
   end
 
   it "knows who bought shirts it's designed" do
-    expect(User.find(3).client_ids.uniq.sort).to eq [1, 2, 5]
+    expect(User.find(3).clients.order(:name).pluck(:name).uniq).to eq ["John", "Mary", "Ralph"]
   end
 
   it "knows which users designed the shirts it's purchased" do
-    expect(User.find(2).supported_designer_ids.uniq.sort).to eq [3, 6]
+    expect(User.find(2).supported_designers.order(:name).pluck(:name)).to eq ["Anne", "Tom"]
   end
 end

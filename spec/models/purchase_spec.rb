@@ -8,6 +8,6 @@ describe Purchase do
   end
 
   it "knows the purchaser" do
-    expect(purchase.purchaser.id).to eq 1
+    expect(purchase.purchaser.name).to eq "John"
   end
 end

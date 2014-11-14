@@ -6,10 +6,10 @@ describe Shirt do
   end
 
   it "knows in which transactions it's been sold" do
-    expect(Shirt.find(3).sale_ids.sort).to eq [3, 4]
+    expect(Shirt.find(3).sale_ids).to match_array [3, 4]
   end
 
   it "knows who has puchased it" do
-    expect(Shirt.find(1).purchasers.order(:name).pluck(:name)).to eq ["John", "Ralph"]
+    expect(Shirt.find(1).purchasers.pluck(:name)).to match_array ["John", "Ralph"]
   end
 end

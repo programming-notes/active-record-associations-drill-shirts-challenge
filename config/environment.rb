@@ -1,45 +1,48 @@
-# Set up gems listed in the Gemfile.
-# See: http://gembundler.com/bundler_setup.html
-#      http://stackoverflow.com/questions/7243486/why-do-you-need-require-bundler-setup
-ENV['BUNDLE_GEMFILE'] ||= File.expand_path('../../Gemfile', __FILE__)
+# Requre gems and Ruby libraries
+require "active_record"
+require "rake"
+require "sqlite3"
+require "pathname"
 
-require 'bundler/setup' if File.exists?(ENV['BUNDLE_GEMFILE'])
 
-# Require gems we care about
-require 'rubygems'
+# Identify the root directory for the application
+# so that we can later reference files from APP_ROOT
+path_to_root_directory = File.expand_path('../../', __FILE__)
+APP_ROOT = Pathname.new(path_to_root_directory)
 
-require 'uri'
-require 'pathname'
 
-require 'pg'
-require 'active_record'
-require 'logger'
-
-require 'sinatra'
-require "sinatra/reloader" if development?
-
-require 'erb'
-
-# Some helper constants for path-centric logic
-APP_ROOT = Pathname.new(File.expand_path('../../', __FILE__))
-
+# Identify the name of the challenge
 APP_NAME = APP_ROOT.basename.to_s
 
-configure do
-  # By default, Sinatra assumes that the root is the file that calls the configure block.
-  # Since this is not the case for us, we set it manually.
-  set :root, APP_ROOT.to_path
-  # See: http://www.sinatrarb.com/faq.html#sessions
-  enable :sessions
-  set :session_secret, ENV['SESSION_SECRET'] || 'this is a secret shhhhh'
 
-  # Set the views to
-  set :views, File.join(Sinatra::Application.root, "app", "views")
+# Load the files in APP_ROOT/app/models/
+model_files = Dir[APP_ROOT.join('app', 'models', '*.rb')]
+
+model_files.each do |model_file|
+  filename = File.basename(model_file, ".*")
+  autoload ActiveSupport::Inflector.camelize(filename), model_file
 end
 
-# Set up the controllers and helpers
-Dir[APP_ROOT.join('app', 'controllers', '*.rb')].each { |file| require file }
-Dir[APP_ROOT.join('app', 'helpers', '*.rb')].each { |file| require file }
 
-# Set up the database and models
-require APP_ROOT.join('config', 'database')
+# Set up ActiveRecord::Base to log its activity depending upon the value of ENV['AR_ENV']
+ActiveRecord::Base.logger = if ENV['AR_ENV'] == 'test'
+                              nil
+                            else
+                              Logger.new(STDOUT)
+                            end
+
+
+# Configure the database depending upon the value of ENV['AR_ENV']
+database_config = if ENV['AR_ENV'] == 'test'
+                    { :adapter  =>  "sqlite3",
+                      :database => "#{APP_ROOT}/db/test-database.sqlite3" }
+                  else
+                    { :adapter  =>  "sqlite3",
+                      :database => "#{APP_ROOT}/db/database.sqlite3" }
+                  end
+
+ActiveRecord::Base.establish_connection(database_config)
+
+
+# Establish connection between models and tables
+ActiveRecord::Base.connection

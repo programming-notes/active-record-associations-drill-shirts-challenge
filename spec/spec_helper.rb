@@ -1,20 +1,19 @@
-require 'rubygems'
+# Set variable so that we connect
+# to the test database.
+ENV['AR_ENV'] = 'test'
 
-# All our specs should require 'spec_helper' (this file)
+require_relative '../config/environment'
 
-# If RACK_ENV isn't set, set it to 'test'.  Sinatra defaults to development,
-# so we have to override that unless we want to set RACK_ENV=test from the
-# command line when we run rake spec.  That's tedious, so do it here.
-ENV['RACK_ENV'] ||= 'test'
+require 'rspec'
+require 'database_cleaner'
 
-require File.expand_path("../../config/environment", __FILE__)
-require 'shoulda-matchers'
-require 'rack/test'
 
 RSpec.configure do |config|
-  config.include Rack::Test::Methods
-end
+  config.before(:suite) do
+    DatabaseCleaner.clean_with(:truncation)
+    DatabaseCleaner.strategy = :transaction
+  end
 
-def app
-  Sinatra::Application
+  config.before(:each) { DatabaseCleaner.start }
+  config.after(:each)  { DatabaseCleaner.clean }
 end

@@ -1,11 +1,91 @@
-require 'rake'
+require_relative "config/environment"
 require 'rspec/core/rake_task'
-
-
-require ::File.expand_path('../config/environment', __FILE__)
-
-# Include all of ActiveSupport's core class extensions, e.g., String#camelize
 require 'active_support/core_ext'
+
+
+
+
+task :default => :spec
+
+desc "Run the spec suite"
+RSpec::Core::RakeTask.new(:spec)
+
+
+
+
+desc 'Start IRB with application environment loaded'
+task "console" do
+  exec "irb -r ./config/environment"
+end
+
+
+
+
+namespace :db do
+  desc "Create the database"
+  task :create do
+    puts "Creating development database and test databases, if they don't exist ..."
+    touch "db/database.sqlite3"
+    touch "db/test-database.sqlite3"
+  end
+
+
+  desc "Drop the database"
+  task :drop do
+    puts "Dropping development and test databases..."
+    rm_f "db/database.sqlite3"
+    rm_f "db/test-database.sqlite3"
+  end
+
+
+  desc "Migrate the database"
+  task :migrate do
+    # Run migrations for the test database in a separate thread
+    test_thread = ENV['AR_ENV'] == 'test' ? nil : Thread.new { `bundle exec rake db:migrate AR_ENV=test` }
+
+    # Ensure that we see the output when running migrations
+    ActiveRecord::Migration.verbose = ENV["VERBOSE"] ? ENV["VERBOSE"] == "true" : true
+
+    # Tell ActiveRecord where to find the migration files and run them
+    migrations_directory = "#{APP_ROOT}db/migrate"
+    ActiveRecord::Migrator.migrations_paths << migrations_directory
+    ActiveRecord::Migrator.migrate ActiveRecord::Migrator.migrations_paths
+
+    # Allow test thread to finish
+    test_thread.join if test_thread
+  end
+
+  desc "rollback your migration--use STEP=number to step back multiple times"
+  task :rollback do
+    number_of_steps = (ENV['STEP'] || 1).to_i
+
+    # Rollback the test database in a separate thread
+    test_thread = ENV['AR_ENV'] == 'test' ? nil : Thread.new { `bundle exec rake db:rollback STEP=#{number_of_steps} AR_ENV=test` }
+
+    ActiveRecord::Migrator.rollback('db/migrate', number_of_steps)
+
+    # Run the db:version rake task
+    Rake::Task['db:version'].invoke if Rake::Task['db:version']
+
+    # Allow test thread to finish
+    test_thread.join if test_thread
+  end
+
+
+  desc "populate the database with sample data"
+  task :seed do
+    require APP_ROOT.join('db', 'seeds.rb')
+  end
+
+
+  desc "Returns the current schema version number"
+  task :version do
+    puts "Current version: #{ActiveRecord::Migrator.current_version}"
+  end
+end
+
+
+
 
 namespace :generate do
   desc "Create an empty model in app/models, e.g., rake generate:model NAME=User"
@@ -65,7 +145,7 @@ namespace :generate do
 
     name     = ENV['NAME'].camelize
     filename = "%s_spec.rb" % ENV['NAME'].underscore
-    path     = APP_ROOT.join('spec', filename)
+    path     = APP_ROOT.join('spec', 'models', filename)
 
     if File.exist?(path)
       raise "ERROR: File '#{path}' already exists"
@@ -75,73 +155,10 @@ namespace :generate do
     File.open(path, 'w+') do |f|
       f.write(<<-EOF.strip_heredoc)
         require 'spec_helper'
-
         describe #{name} do
           pending "add some examples to (or delete) #{__FILE__}"
         end
       EOF
     end
   end
-
 end
-
-namespace :db do
-  desc "Drop, create, and migrate the database"
-  task :reset => [:drop, :create, :migrate]
-
-  desc "Create the databases at #{DB_NAME}"
-  task :create do
-    puts "Creating development and test databases if they don't exist..."
-    system("createdb #{APP_NAME}_development && createdb #{APP_NAME}_test")
-  end
-
-  desc "Drop the database at #{DB_NAME}"
-  task :drop do
-    puts "Dropping development and test databases..."
-    system("dropdb #{APP_NAME}_development && dropdb #{APP_NAME}_test")
-  end
-
-  desc "Migrate the database (options: VERSION=x, VERBOSE=false, SCOPE=blog)."
-  task :migrate do
-    ActiveRecord::Migrator.migrations_paths << File.dirname(__FILE__) + 'db/migrate'
-    ActiveRecord::Migration.verbose = ENV["VERBOSE"] ? ENV["VERBOSE"] == "true" : true
-    ActiveRecord::Migrator.migrate(ActiveRecord::Migrator.migrations_paths, ENV["VERSION"] ? ENV["VERSION"].to_i : nil) do |migration|
-      ENV["SCOPE"].blank? || (ENV["SCOPE"] == migration.scope)
-    end
-  end
-
-  desc "Populate the database with dummy data by running db/seeds.rb"
-  task :seed do
-    require APP_ROOT.join('db', 'seeds.rb')
-  end
-
-  desc "Returns the current schema version number"
-  task :version do
-    puts "Current version: #{ActiveRecord::Migrator.current_version}"
-  end
-
-  desc "rollback your migration--use STEPS=number to step back multiple times"
-  task :rollback do
-    steps = (ENV['STEPS'] || 1).to_i
-    ActiveRecord::Migrator.rollback('db/migrate', steps)
-    Rake::Task['db:version'].invoke if Rake::Task['db:version']
-  end
-
-  namespace :test do
-    desc "Migrate test database"
-    task :prepare do
-      system "rake db:migrate RACK_ENV=test"
-      system "rake db:seed RACK_ENV=test"
-    end
-  end
-end
-
-desc 'Start IRB with application environment loaded'
-task "console" do
-  exec "irb -r./config/environment"
-end
-
-desc "Run the specs"
-RSpec::Core::RakeTask.new(:spec)
-
-task :default  => :spec

@@ -7,7 +7,7 @@ This mock app contains three models:  User, Shirt, and Purchase.  The relationsh
 
 <br>
 
-![database schema](schema.png)
+![database schema](shirts-schema.png)
 
 *Figure 1:*  Database Schema
 

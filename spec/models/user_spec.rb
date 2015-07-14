@@ -1,28 +1,44 @@
 require 'spec_helper'
 
 describe User do
+  describe 'associations' do
+    before(:each) do
+      @user = User.create!(name: 'Shaelyn')
+      @other_designer = User.create!(name: 'Caetlin')
+      @purchaser_1 = User.create!(name: 'Kennith')
+      @purchaser_2 = User.create!(name: 'Farouk')
 
-  it "knows which shirts it's designed" do
-    expect(User.find(3).designed_shirt_ids.sort).to match_array [1, 2, 6]
-  end
+      @designed_shirt_1 = Shirt.create!(designer_id: @user.id)
+      @designed_shirt_2 = Shirt.create!(designer_id: @user.id)
+      @purchased_shirt  = Shirt.create!(designer_id: @other_designer.id)
 
-  it "knows which purchases it's made" do
-    expect(User.find(1).purchase_ids.sort).to match_array [1, 2, 8]
-  end
+      @purchase = Purchase.create!(shirt_id: @purchased_shirt.id, purchaser_id: @user.id)
+      @sale_1 = Purchase.create!(shirt_id: @designed_shirt_1.id, purchaser_id: @purchaser_1.id)
+      @sale_2 = Purchase.create!(shirt_id: @designed_shirt_2.id, purchaser_id: @purchaser_2.id)
+    end
 
-  it "knows which shirts it's purchased" do
-    expect(User.find(2).purchased_shirt_ids.sort).to match_array [5, 6]
-  end
+    it "returns the shirts it designed" do
+      expect(@user.designed_shirts).to match_array [@designed_shirt_1, @designed_shirt_2]
+    end
 
-  it "knows the purchases in which the shirts it's designed were sold" do
-    expect(User.find(3).sale_ids).to match_array [2, 6, 7, 8]
-  end
+    it "returns the purchases that it made" do
+      expect(@user.purchases).to match_array [@purchase]
+    end
 
-  it "knows who bought shirts it's designed" do
-    expect(User.find(3).clients.pluck(:name).uniq).to match_array ["John", "Mary", "Ralph"]
-  end
+    it "returns the shirts it purchased" do
+      expect(@user.purchased_shirts).to match_array [@purchased_shirt]
+    end
 
-  it "knows which users designed the shirts it's purchased" do
-    expect(User.find(2).supported_designers.pluck(:name)).to match_array ["Anne", "Tom"]
+    it "returns the purchases in which a shirt it designed is sold" do
+      expect(@user.sales).to match_array [@sale_1, @sale_2]
+    end
+
+    it "returns the users who bought a shirt it designed" do
+      expect(@user.clients).to match_array [@purchaser_1, @purchaser_2]
+    end
+
+    it "returns the designers of the shirts it purchased" do
+      expect(@user.supported_designers).to match_array [@other_designer]
+    end
   end
 end
